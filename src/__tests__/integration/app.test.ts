@@ -1,6 +1,6 @@
 import { Express } from 'express';
 import request from 'supertest';
-import { createApp } from '../../app';
+import { createApp } from '../../app.ts';
 
 let app: Express;
 

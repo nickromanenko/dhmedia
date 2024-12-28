@@ -1,4 +1,4 @@
-import { capitalize, slugify, truncate } from '../../utils/string-utils';
+import { capitalize, slugify, truncate } from '../../utils/string-utils.ts';
 
 describe('String Utils', () => {
     describe('capitalize', () => {

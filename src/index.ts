@@ -1,12 +1,10 @@
-import * as dotenv from 'dotenv';
+import colors from 'colors';
+import 'dotenv/config';
 import { createApp } from './app.ts';
-
-// Load environment variables from .env file
-dotenv.config();
 
 const app = createApp();
 const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
-    console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
+    console.log(colors.blue(`🚀 Server is running at`), colors.green(`http://localhost:${port}`));
 });

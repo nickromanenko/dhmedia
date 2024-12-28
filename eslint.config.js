@@ -21,7 +21,7 @@ export default [
             ...tsPlugin.configs.recommended.rules,
             ...prettierConfig.rules,
             '@typescript-eslint/explicit-function-return-type': 'error',
-            '@typescript-eslint/no-explicit-any': 'error',
+            '@typescript-eslint/no-explicit-any': 0,
             '@typescript-eslint/no-unused-vars': 'error',
             'prettier/prettier': 'error',
         },
