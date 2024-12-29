@@ -18,6 +18,21 @@ export interface BotSettings {
     stop_sequences?: string[];
 }
 
+export interface BotWidgetSettings {
+    name?: string;
+    show_header?: boolean;
+    background_color?: string;
+    text_color?: string;
+    bot_bubble_color?: string;
+    bot_bubble_text_color?: string;
+    user_bubble_color?: string;
+    user_bubble_text_color?: string;
+    bot_picture?: string;
+    initial_message?: string;
+    suggested_messages?: string[];
+    suggested_messages_always_displayed?: boolean;
+}
+
 export interface CreateBotDto {
     name: string;
     description?: string;
@@ -218,6 +233,20 @@ export class BotService {
                 `Failed to fetch bot: ${error instanceof Error ? error.message : 'Unknown error'}`,
             );
         }
+    }
+
+    async getBotSettings(botId: string): Promise<BotWidgetSettings> {
+        const bot = await this.getBotById(botId);
+        if (!bot) {
+            throw new Error('Bot not found');
+        }
+        // Initialize chat model with bot settings
+        const widgetSettings = bot.widget_settings as BotWidgetSettings;
+        return widgetSettings;
+    }
+
+    async getThreadMessages(botId: string, threadId: string): Promise<Message[]> {
+        return this.getBotMessages(botId, threadId);
     }
 }
 

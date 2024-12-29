@@ -54,3 +54,51 @@ export async function handleMessage(req: Request, res: Response): Promise<any> {
         });
     }
 }
+
+export async function getBotSettings(req: Request, res: Response): Promise<any> {
+    try {
+        const settings = await botService.getBotSettings(req.params.botId);
+        return res.status(200).json({
+            success: true,
+            settings: settings || {},
+        });
+    } catch (error: unknown) {
+        console.error('Error processing message:', error);
+
+        if (error instanceof Error && error.message === 'Bot not found') {
+            return res.status(404).json({
+                success: false,
+                error: 'Bot not found',
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+        });
+    }
+}
+
+export async function getThreadMessages(req: Request, res: Response): Promise<any> {
+    try {
+        const messages = await botService.getThreadMessages(req.params.botId, req.params.threadId);
+        return res.status(200).json({
+            success: true,
+            messages,
+        });
+    } catch (error: unknown) {
+        console.error('Error processing message:', error);
+
+        if (error instanceof Error && error.message === 'Bot not found') {
+            return res.status(404).json({
+                success: false,
+                error: 'Bot not found',
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+        });
+    }
+}

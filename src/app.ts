@@ -1,11 +1,13 @@
+import cors from 'cors';
 import express, { Express, Request, Response, Router } from 'express';
-import { handleMessage } from './controllers/bot.controller.ts';
+import { getBotSettings, getThreadMessages, handleMessage } from './controllers/bot.controller.ts';
 
 export function createApp(): Express {
     const app: Express = express();
     const router: Router = express.Router();
 
     // Middleware
+    app.use(cors());
     app.use(express.json());
 
     // Base route
@@ -13,6 +15,11 @@ export function createApp(): Express {
 
     // Messages endpoint
     router.post('/:botId/messages', handleMessage);
+
+    router.get('/:botId/conversations/:threadId', getThreadMessages);
+
+    // Bot settings endpoint
+    router.get('/:botId/settings', getBotSettings);
 
     app.use(router);
     return app;

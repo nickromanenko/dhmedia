@@ -16,18 +16,19 @@ datasource db {
 }
 
 model Bot {
-  id          String      @id @default(uuid())
-  name        String
-  description String?
-  model       String
-  api_key     String
-  prompt      String
-  kb_id       String?
-  settings    Json?
-  created_at  DateTime    @default(now())
-  updated_at  DateTime    @updatedAt
-  messages    Message[]
-  embeddings  Embedding[]
+  id              String      @id @default(uuid())
+  name            String
+  description     String?
+  model           String
+  api_key         String
+  prompt          String
+  kb_id           String?
+  settings        Json?
+  widget_settings Json?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+  messages        Message[]
+  embeddings      Embedding[]
 
   @@map("bots")
 }
