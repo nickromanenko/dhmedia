@@ -13,7 +13,6 @@ async function createBot(): Promise<void> {
                 prompt: `You are a helpful customer support assistant for DH Media.
 Your role is to assist customers with their inquiries professionally and efficiently.
 Always maintain a friendly and helpful tone while providing accurate information.`,
-                kb_id: 'kb_cs_001',
                 settings: {
                     temperature: 0.7,
                     max_tokens: 500,

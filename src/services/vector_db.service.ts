@@ -2,7 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import OpenAI from 'openai';
 
-type EmbeddingRecord = {
+export type EmbeddingRecord = {
     id: string;
     content: string;
     embedding: any;
@@ -157,7 +157,7 @@ export class VectorDBService {
         const result = await this.prisma.$executeRaw(
             Prisma.sql`
                 DELETE FROM embeddings
-                WHERE id = ANY(${ids}::uuid[])
+                WHERE id = ANY(${Prisma.raw(`ARRAY[${ids.map((id) => `'${id}'`).join(',')}]`)})
                 RETURNING id;
             `,
         );
@@ -185,5 +185,22 @@ export class VectorDBService {
         }
 
         return result[0];
+    }
+
+    /**
+     * Gets all embeddings for a specific bot
+     * @param botId The ID of the bot to get embeddings for
+     */
+    async getAllEmbeddingsByBotId(botId: string): Promise<EmbeddingRecord[]> {
+        const results = await this.prisma.$queryRaw<EmbeddingRecord[]>(
+            Prisma.sql`
+                SELECT id, content, metadata, bot_id, created_at
+                FROM embeddings
+                WHERE bot_id = ${botId}
+                ORDER BY created_at DESC;
+            `,
+        );
+
+        return results;
     }
 }

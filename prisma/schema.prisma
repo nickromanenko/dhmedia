@@ -22,9 +22,9 @@ model Bot {
   model           String
   api_key         String
   prompt          String
-  kb_id           String?
   settings        Json?
   widget_settings Json?
+  tools           Json?       // Array of tool objects: { name: string, description?: string, input_schema: Json, output_schema: Json }
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
   messages        Message[]

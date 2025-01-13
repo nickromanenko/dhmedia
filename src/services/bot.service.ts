@@ -1,6 +1,7 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { Bot, Message, Prisma, PrismaClient } from '@prisma/client';
+import { getHttpTools } from '../tools/http.tool.ts';
 import { SimilarityResult, VectorDBService } from './vector_db.service.ts';
 
 const prisma = new PrismaClient();
@@ -39,7 +40,6 @@ export interface CreateBotDto {
     model: string;
     api_key: string;
     prompt: string;
-    kb_id?: string;
     settings?: BotSettings;
 }
 
@@ -56,6 +56,8 @@ export class BotService {
         content: string,
         threadId: string,
     ): Promise<HandleMessageResponse> {
+        // console.log('Handling message:', botId, content, threadId);
+
         // Get bot configuration
         const bot = await this.getBotById(botId);
         if (!bot) {
@@ -64,7 +66,14 @@ export class BotService {
 
         // Initialize chat model with bot settings
         const settings = bot.settings as BotSettings;
-        const chat = new ChatOpenAI({
+        // const tools = getHttpTools(bot.tools || []);
+
+        let tools: any[] = [];
+        if (bot.tools) {
+            tools = getHttpTools(bot.tools as any[]);
+        }
+
+        const model = new ChatOpenAI({
             modelName: bot.model,
             openAIApiKey: bot.api_key,
             temperature: settings?.temperature,
@@ -72,7 +81,9 @@ export class BotService {
             topP: settings?.top_p,
             frequencyPenalty: settings?.frequency_penalty,
             presencePenalty: settings?.presence_penalty,
-        });
+        }).bindTools(tools);
+
+        // console.log('TOOLS:', tools);
 
         // Get conversation history
         const history = await this.getBotMessages(botId, threadId);
@@ -81,8 +92,19 @@ export class BotService {
         const vectorDb = new VectorDBService();
         const similarContent = await vectorDb.querySimilar(content, botId);
 
-        // Create messages array with system prompt and context
+        // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
+        // Add tool descriptions and instructions
+        // systemPrompt += '\n\nYou have access to the following tools:\n';
+
+        // systemPrompt +=
+        //     '\n\n2. HTTP Tool: Use this to get project information by providing a project ID.' +
+        //     '\nExample: Get project info by calling it with the project ID';
+
+        // systemPrompt +=
+        //     '\n\nIMPORTANT INSTRUCTIONS FOR TOOL USE:' +
+        //     '\n- When you receive tool results, incorporate them into your response naturally' +
+        //     '\n- Format your response as a complete, natural sentence using the tool results';
         if (similarContent.length > 0) {
             systemPrompt +=
                 "\n\nUse the following pieces of context to answer the question. If you don't know the answer, just say that you don't know, don't try to make up an answer.:\n----------------\n" +
@@ -111,15 +133,74 @@ export class BotService {
         await this.createMessage(botId, 'user', content, threadId);
 
         // Get response from the model
-        const response = await chat.invoke(messages);
+        const response = await model.invoke(messages);
+        // console.log('Response:', response);
 
-        // Store assistant response
+        // Execute any tool calls
+        const toolCalls = response.additional_kwargs?.tool_calls || [];
+        const toolOutputs = new Map<string, string>();
+
+        if (toolCalls.length > 0) {
+            for (const toolCall of toolCalls) {
+                try {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    let result: string;
+
+                    if (toolCall.function.name.includes('http_tool')) {
+                        const httpTool = tools.find((t) => t.name === 'http_tool');
+                        result = await httpTool.invoke(args);
+                    } else {
+                        throw new Error(`Unknown tool: ${toolCall.function.name}`);
+                    }
+                    console.log(`Tool ${toolCall.function.name} result:`, result);
+                    if (toolCall.id) {
+                        toolOutputs.set(toolCall.id, result);
+                    }
+                } catch (error) {
+                    console.error(`Tool execution error:`, error);
+                    if (toolCall.id) {
+                        toolOutputs.set(
+                            toolCall.id,
+                            `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                        );
+                    }
+                }
+            }
+
+            // Pass tool outputs back to the model
+            // console.log('Tool outputs:', toolOutputs);
+
+            // Create a system message with tool results and instructions
+            const toolResults = Array.from(toolOutputs.entries())
+                .map(([toolId, result]) => {
+                    const toolCall = toolCalls.find((tc) => tc.id === toolId);
+                    return toolCall ? `${toolCall.function.name} returned: ${result}` : '';
+                })
+                .filter(Boolean)
+                .join('\n');
+
+            messages.push(
+                new SystemMessage(
+                    `I have executed the tools and here are the results:\n${toolResults}\n\nPlease provide a natural language response using these results. Do not make any new tool calls.`,
+                ),
+            );
+
+            // Get final response with tools disabled
+            const finalResponse = await model.invoke(messages);
+            const responseContent =
+                typeof finalResponse.content === 'string'
+                    ? finalResponse.content
+                    : JSON.stringify(finalResponse.content);
+            await this.createMessage(botId, 'assistant', responseContent, threadId);
+            return { content: finalResponse.content };
+        }
+
+        // If no tool calls, return the original response
         const responseContent =
             typeof response.content === 'string'
                 ? response.content
                 : JSON.stringify(response.content);
         await this.createMessage(botId, 'assistant', responseContent, threadId);
-
         return { content: response.content };
     }
 
