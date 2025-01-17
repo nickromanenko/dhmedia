@@ -20,20 +20,19 @@ export type SimilarityResult = {
 
 export class VectorDBService {
     private prisma: PrismaClient;
-    private openai: OpenAI;
 
     constructor() {
         this.prisma = new PrismaClient();
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
     }
 
     /**
      * Creates an embedding for the given text using OpenAI's API
      */
-    private async createEmbedding(text: string): Promise<number[]> {
-        const response = await this.openai.embeddings.create({
+    private async createEmbedding(apiKey: string, text: string): Promise<number[]> {
+        const openai: OpenAI = new OpenAI({
+            apiKey,
+        });
+        const response = await openai.embeddings.create({
             input: text,
             model: 'text-embedding-3-small',
         });
@@ -45,11 +44,12 @@ export class VectorDBService {
      * Stores text content and its embedding vector in the database
      */
     async storeEmbedding(
+        apiKey: string,
         content: string,
         botId: string,
         metadata?: Record<string, any>,
     ): Promise<EmbeddingRecord> {
-        const embedding = await this.createEmbedding(content);
+        const embedding = await this.createEmbedding(apiKey, content);
         const id = crypto.randomUUID();
 
         const result = await this.prisma.$queryRaw<EmbeddingRecord[]>(
@@ -78,12 +78,13 @@ export class VectorDBService {
      * @param similarityThreshold The minimum similarity score (0-1) to include in results
      */
     async querySimilar(
-        text: string,
+        apiKey: string,
         botId: string,
+        text: string,
         limit: number = 5,
         similarityThreshold: number = 0.4,
     ): Promise<SimilarityResult[]> {
-        const queryEmbedding = await this.createEmbedding(text);
+        const queryEmbedding = await this.createEmbedding(apiKey, text);
         const vectorQuery = `array[${queryEmbedding.join(',')}]::vector(1536)`;
 
         const results = await this.prisma.$queryRaw<SimilarityResult[]>(
@@ -108,12 +109,14 @@ export class VectorDBService {
      * Batch stores multiple text contents and their embeddings
      */
     async batchStoreEmbeddings(
-        items: Array<{ content: string; metadata?: Record<string, any> }>,
+        apiKey: string,
         botId: string,
+        items: Array<{ content: string; metadata?: Record<string, any> }>,
     ): Promise<{ count: number }> {
+        console.log('batchStoreEmbeddings', botId, apiKey, items.length);
         const embeddings = await Promise.all(
             items.map(async (item) => {
-                const embedding = await this.createEmbedding(item.content);
+                const embedding = await this.createEmbedding(apiKey, item.content);
                 return {
                     id: crypto.randomUUID(),
                     content: item.content,

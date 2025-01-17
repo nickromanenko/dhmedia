@@ -4,6 +4,7 @@ import fs from 'fs';
 import mammoth from 'mammoth';
 import path from 'path';
 import * as pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import { botService } from '../services/bot.service.ts';
 import { VectorDBService } from '../services/vector_db.service.js';
 
 async function extractTextFromDocx(filePath: string): Promise<string> {
@@ -26,6 +27,11 @@ async function processFile(
         const ext = path.extname(filePath).toLowerCase();
         let text: string;
 
+        const bot = await botService.getBotById(botId);
+        if (!bot) {
+            throw new Error(`Bot not found: ${botId}`);
+        }
+
         // Extract text based on file type
         if (ext === '.docx') {
             text = await extractTextFromDocx(filePath);
@@ -45,6 +51,8 @@ async function processFile(
 
         // Store chunks in vector database
         await vectorDb.batchStoreEmbeddings(
+            bot.api_key!,
+            botId,
             chunks.map((chunk: { pageContent: string; metadata?: { loc?: string } }) => ({
                 content: chunk.pageContent,
                 metadata: {
@@ -52,7 +60,6 @@ async function processFile(
                     loc: chunk.metadata?.loc || 'unknown',
                 },
             })),
-            botId,
         );
 
         console.log(`Successfully processed ${filePath}`);

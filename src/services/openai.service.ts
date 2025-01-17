@@ -1,10 +1,9 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
-export async function getContentFromPage(htmlContent: string): Promise<string> {
+export async function getContentFromPage(apiKey: string, htmlContent: string): Promise<string> {
+    const openai = new OpenAI({
+        apiKey,
+    });
     const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -26,8 +25,12 @@ export async function getContentFromPage(htmlContent: string): Promise<string> {
 }
 
 export async function createQueryFromMessages(
+    apiKey: string,
     messages: Array<{ role: string; content: string }>,
 ): Promise<string> {
+    const openai = new OpenAI({
+        apiKey,
+    });
     const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [

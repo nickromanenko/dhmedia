@@ -96,12 +96,13 @@ export class BotService {
         // If there's history, analyze for context
         if (history.length > 0) {
             queryContent = await createQueryFromMessages(
+                bot.api_key,
                 history.map((msg) => ({ role: msg.role, content: msg.content })),
             );
         }
 
         // Query similar content from vector database with contextual query
-        const similarContent = await vectorDb.querySimilar(queryContent, botId);
+        const similarContent = await vectorDb.querySimilar(bot.api_key, botId, queryContent);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;

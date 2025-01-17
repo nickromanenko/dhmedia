@@ -4,6 +4,7 @@ import 'dotenv/config';
 import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
 import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { botService } from '../services/bot.service.ts';
 import { VectorDBService } from '../services/vector_db.service.js';
 
 // List of URLs to process
@@ -11,8 +12,9 @@ const urls = ['https://www.pabtranslation.co.uk'];
 
 try {
     async function loadAndProcessWebPages(botId: string): Promise<void> {
-        if (!botId) {
-            throw new Error('Bot ID is required');
+        const bot = await botService.getBotById(botId);
+        if (!bot) {
+            throw new Error(`Bot not found: ${botId}`);
         }
 
         const vectorDB = new VectorDBService();
@@ -49,7 +51,7 @@ try {
                 }));
 
                 // Store embeddings in batches
-                const result = await vectorDB.batchStoreEmbeddings(items, botId);
+                const result = await vectorDB.batchStoreEmbeddings(bot.api_key!, botId, items);
                 console.log(`Stored ${result.count} embeddings for ${url}`);
             } catch (error) {
                 console.error(`Error processing ${url}:`.red, error);
