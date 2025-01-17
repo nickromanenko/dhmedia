@@ -2,6 +2,7 @@ import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages
 import { ChatOpenAI } from '@langchain/openai';
 import { Bot, Message, Prisma, PrismaClient } from '@prisma/client';
 import { getHttpTools } from '../tools/http.tool.ts';
+import { createQueryFromMessages } from './openai.service.ts';
 import { SimilarityResult, VectorDBService } from './vector_db.service.ts';
 
 const prisma = new PrismaClient();
@@ -88,9 +89,19 @@ export class BotService {
         // Get conversation history
         const history = await this.getBotMessages(botId, threadId);
 
-        // Query similar content from vector database
+        // Analyze conversation history to determine context
         const vectorDb = new VectorDBService();
-        const similarContent = await vectorDb.querySimilar(content, botId);
+        let queryContent = content;
+
+        // If there's history, analyze for context
+        if (history.length > 0) {
+            queryContent = await createQueryFromMessages(
+                history.map((msg) => ({ role: msg.role, content: msg.content })),
+            );
+        }
+
+        // Query similar content from vector database with contextual query
+        const similarContent = await vectorDb.querySimilar(queryContent, botId);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
@@ -331,5 +342,4 @@ export class BotService {
     }
 }
 
-// Export a singleton instance
 export const botService = new BotService();
