@@ -44,14 +44,13 @@ async function processFile(
 
         // Split text into chunks
         const splitter = new RecursiveCharacterTextSplitter({
-            chunkSize: 1000,
+            chunkSize: 1200,
             chunkOverlap: 200,
         });
         const chunks = await splitter.createDocuments([text]);
 
         // Store chunks in vector database
         await vectorDb.batchStoreEmbeddings(
-            bot.api_key!,
             botId,
             chunks.map((chunk: { pageContent: string; metadata?: { loc?: string } }) => ({
                 content: chunk.pageContent,

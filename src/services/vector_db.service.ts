@@ -28,10 +28,8 @@ export class VectorDBService {
     /**
      * Creates an embedding for the given text using OpenAI's API
      */
-    private async createEmbedding(apiKey: string, text: string): Promise<number[]> {
-        const openai: OpenAI = new OpenAI({
-            apiKey,
-        });
+    private async createEmbedding(text: string): Promise<number[]> {
+        const openai: OpenAI = new OpenAI();
         const response = await openai.embeddings.create({
             input: text,
             model: 'text-embedding-3-small',
@@ -78,13 +76,14 @@ export class VectorDBService {
      * @param similarityThreshold The minimum similarity score (0-1) to include in results
      */
     async querySimilar(
-        apiKey: string,
         botId: string,
         text: string,
         limit: number = 5,
         similarityThreshold: number = 0.4,
     ): Promise<SimilarityResult[]> {
-        const queryEmbedding = await this.createEmbedding(apiKey, text);
+        console.log('👀 querySimilar', botId, text, limit, similarityThreshold);
+
+        const queryEmbedding = await this.createEmbedding(text);
         const vectorQuery = `array[${queryEmbedding.join(',')}]::vector(1536)`;
 
         const results = await this.prisma.$queryRaw<SimilarityResult[]>(
@@ -109,14 +108,14 @@ export class VectorDBService {
      * Batch stores multiple text contents and their embeddings
      */
     async batchStoreEmbeddings(
-        apiKey: string,
         botId: string,
         items: Array<{ content: string; metadata?: Record<string, any> }>,
+        tag: string = '',
     ): Promise<{ count: number }> {
-        console.log('batchStoreEmbeddings', botId, apiKey, items.length);
+        console.log('batchStoreEmbeddings', botId, items.length);
         const embeddings = await Promise.all(
             items.map(async (item) => {
-                const embedding = await this.createEmbedding(apiKey, item.content);
+                const embedding = await this.createEmbedding(item.content);
                 return {
                     id: crypto.randomUUID(),
                     content: item.content,
@@ -125,6 +124,7 @@ export class VectorDBService {
                         source: item.metadata?.source || 'unknown',
                         loc: item.metadata?.loc || 'unknown',
                     },
+                    tag,
                 };
             }),
         );

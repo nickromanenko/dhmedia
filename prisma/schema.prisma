@@ -20,8 +20,8 @@ model Bot {
   name            String
   description     String?
   model           String
-  api_key         String
   prompt          String
+  prompt_template String?
   settings        Json?
   widget_settings Json?
   tools           Json?       // Array of tool objects: { name: string, description?: string, input_schema: Json, output_schema: Json }

@@ -1,11 +1,9 @@
 import OpenAI from 'openai';
 
-export async function getContentFromPage(apiKey: string, htmlContent: string): Promise<string> {
-    const openai = new OpenAI({
-        apiKey,
-    });
+export async function getContentFromPage(htmlContent: string): Promise<string> {
+    const openai = new OpenAI();
     const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
             {
                 role: 'system',
@@ -18,21 +16,18 @@ export async function getContentFromPage(apiKey: string, htmlContent: string): P
             },
         ],
         temperature: 0.3,
-        max_tokens: 4000,
+        max_tokens: 10000,
     });
 
     return response.choices[0].message.content || '';
 }
 
 export async function createQueryFromMessages(
-    apiKey: string,
     messages: Array<{ role: string; content: string }>,
 ): Promise<string> {
-    const openai = new OpenAI({
-        apiKey,
-    });
+    const openai = new OpenAI();
     const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
             {
                 role: 'system',
@@ -45,10 +40,7 @@ Instructions:
 4. Focus on factual and specific terms rather than conversational elements
 5. Exclude generic pleasantries, greetings, or meta-conversation
 6. If the conversation has multiple topics, prioritize the most recent relevant topic
-7. The query should be 1-3 sentences maximum, focused on the key search terms
-
-Example output:
-"Latest security features in AWS Lambda and best practices for serverless security implementation."
+7. The query should be 1 sentence maximum, focused on the key search terms - ideally several words
 
 Do not explain your process or add any commentary. Return only the search query.`,
             },

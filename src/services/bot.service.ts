@@ -1,8 +1,8 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { Bot, Message, Prisma, PrismaClient } from '@prisma/client';
-import { getHttpTools } from '../tools/http.tool.ts';
-import { createQueryFromMessages } from './openai.service.ts';
+import axios from 'axios';
+import { createQueryFromMessages, getContentFromPage } from './openai.service.ts';
 import { SimilarityResult, VectorDBService } from './vector_db.service.ts';
 
 const prisma = new PrismaClient();
@@ -39,8 +39,8 @@ export interface CreateBotDto {
     name: string;
     description?: string;
     model: string;
-    api_key: string;
     prompt: string;
+    prompt_template?: string;
     settings?: BotSettings;
 }
 
@@ -57,7 +57,7 @@ export class BotService {
         content: string,
         threadId: string,
     ): Promise<HandleMessageResponse> {
-        // console.log('Handling message:', botId, content, threadId);
+        console.log('📩 Handling message:', botId, threadId, content);
 
         // Get bot configuration
         const bot = await this.getBotById(botId);
@@ -70,13 +70,13 @@ export class BotService {
         // const tools = getHttpTools(bot.tools || []);
 
         let tools: any[] = [];
-        if (bot.tools) {
-            tools = getHttpTools(bot.tools as any[]);
-        }
+        // if (bot.tools) {
+        //     tools = getHttpTools(bot.tools as any[]);
+        // }
 
         const model = new ChatOpenAI({
             modelName: bot.model,
-            openAIApiKey: bot.api_key,
+            openAIApiKey: process.env.OPENAI_API_KEY || '',
             temperature: settings?.temperature,
             maxTokens: settings?.max_tokens,
             topP: settings?.top_p,
@@ -84,25 +84,23 @@ export class BotService {
             presencePenalty: settings?.presence_penalty,
         }).bindTools(tools);
 
-        // console.log('TOOLS:', tools);
-
+        // Store user message
+        await this.createMessage(botId, 'user', content, threadId);
         // Get conversation history
         const history = await this.getBotMessages(botId, threadId);
 
         // Analyze conversation history to determine context
         const vectorDb = new VectorDBService();
         let queryContent = content;
-
         // If there's history, analyze for context
         if (history.length > 0) {
             queryContent = await createQueryFromMessages(
-                bot.api_key,
                 history.map((msg) => ({ role: msg.role, content: msg.content })),
             );
         }
 
         // Query similar content from vector database with contextual query
-        const similarContent = await vectorDb.querySimilar(bot.api_key, botId, queryContent);
+        const similarContent = await vectorDb.querySimilar(botId, queryContent);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
@@ -118,6 +116,7 @@ export class BotService {
         //     '\n- When you receive tool results, incorporate them into your response naturally' +
         //     '\n- Format your response as a complete, natural sentence using the tool results';
         if (similarContent.length > 0) {
+            console.log('✚  RAG pieces amount:', similarContent.length);
             systemPrompt +=
                 "\n\nUse the following pieces of context to answer the question. If you don't know the answer, just say that you don't know, don't try to make up an answer.:\n----------------\n" +
                 similarContent
@@ -140,9 +139,6 @@ export class BotService {
 
         // Add current user message
         messages.push(new HumanMessage(content));
-
-        // Store user message
-        await this.createMessage(botId, 'user', content, threadId);
 
         // Get response from the model
         const response = await model.invoke(messages);
@@ -328,6 +324,29 @@ export class BotService {
         }
     }
 
+    /**
+     * Updates a bot by its ID
+     * @param id The bot ID
+     * @param data The data to update
+     * @returns The updated bot
+     */
+    async updateBotById(id: string, data: Partial<CreateBotDto>): Promise<Bot> {
+        try {
+            const bot = await prisma.bot.update({
+                where: { id },
+                data: {
+                    ...data,
+                    settings: data.settings ? (data.settings as Prisma.InputJsonValue) : undefined,
+                },
+            });
+            return bot;
+        } catch (error) {
+            throw new Error(
+                `Failed to update bot: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+        }
+    }
+
     async getBotSettings(botId: string): Promise<BotWidgetSettings> {
         const bot = await this.getBotById(botId);
         if (!bot) {
@@ -344,3 +363,63 @@ export class BotService {
 }
 
 export const botService = new BotService();
+
+export async function populateKBFromCrawlerResults(
+    botId: string,
+    startUrl: string,
+): Promise<{ count: number }> {
+    const bot = await botService.getBotById(botId);
+    if (!bot) {
+        throw new Error(`Bot not found: ${botId}`);
+    }
+    const vectorDB = new VectorDBService();
+
+    let url = startUrl;
+    let totalProcessed = 0;
+    const items = [];
+    const titles = [];
+
+    while (url) {
+        console.log(`[🔍] Fetching: ${url}`);
+        const response = (await axios.get(url)).data;
+        const results = response.data;
+
+        let i = 0;
+        const len = results.length;
+        for (const result of results) {
+            i++;
+            totalProcessed++;
+            console.log(`➡️ ${totalProcessed} (${i}/${len}) ${result.title}`);
+            const content = await getContentFromPage(result.body);
+            console.log(content);
+            titles.push(result.title);
+            items.push({
+                content: `${result.title}\n${content}`,
+                metadata: {
+                    source: result.url,
+                },
+            });
+        }
+
+        url = response.next_page_url;
+        if (url) {
+            console.log(`⏭️ Next page URL: ${url}`);
+        } else {
+            console.log('⏹️ No more pages to process');
+        }
+    }
+
+    const result = await vectorDB.batchStoreEmbeddings(botId, items, 'crawler');
+    console.log(`💽 Stored ${result.count} embeddings (processed ${totalProcessed} items)`);
+
+    // Update bot prompt template
+    if (bot.prompt_template) {
+        const updatedPrompt = bot.prompt_template
+            .replace('{{titles}}', titles.join(', '))
+            .replace('{{count}}', result.count.toString());
+        await botService.updateBotById(botId, { prompt: updatedPrompt });
+        console.log(`🔄 Updated bot prompt template`);
+    }
+
+    return { count: result.count || 0 };
+}

@@ -8,9 +8,7 @@ async function createBot(): Promise<void> {
             data: {
                 name: 'DHHMedia Assistant',
                 description: 'Assitant for DHHMedia',
-                model: 'gpt-4o-mini',
-                api_key:
-                    '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', // Replace with actual API key in production
+                model: 'gpt-4o-mini', // Replace with actual API key in production
                 prompt: `## Identity
 You are a support agent for a Doghouse Media.
 Company Profile

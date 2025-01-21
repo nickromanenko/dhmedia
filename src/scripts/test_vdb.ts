@@ -11,7 +11,7 @@ async function main(): Promise<any> {
 
     const query = 'sustainability';
 
-    const result = await vectorDB.querySimilar(bot.api_key, botId, query, 5, 0.5);
+    const result = await vectorDB.querySimilar(botId, query, 5, 0.5);
     console.log(result.map((r) => r.content));
 }
 

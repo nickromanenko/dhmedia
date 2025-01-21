@@ -51,7 +51,7 @@ try {
                 }));
 
                 // Store embeddings in batches
-                const result = await vectorDB.batchStoreEmbeddings(bot.api_key!, botId, items);
+                const result = await vectorDB.batchStoreEmbeddings(botId, items);
                 console.log(`Stored ${result.count} embeddings for ${url}`);
             } catch (error) {
                 console.error(`Error processing ${url}:`.red, error);
