@@ -8,7 +8,8 @@ channel = "stable-24_05"
 requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run = ["sh", "-c", "npm run start"]
+run = ["sh", "-c", "npm run serve"]
+build = ["sh", "-c", "npm run build"]
 
 [[ports]]
 localPort = 3000
