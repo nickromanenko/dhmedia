@@ -1,7 +1,14 @@
+import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
+import { Document } from '@langchain/core/documents';
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Bot, Message, Prisma, PrismaClient } from '@prisma/client';
 import axios from 'axios';
+import { readdirSync, readFileSync } from 'fs';
+import mammoth from 'mammoth';
+import { basename, extname, join } from 'path';
+import * as pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import { createQueryFromMessages, getContentFromPage } from './openai.service.ts';
 import { SimilarityResult, VectorDBService } from './vector_db.service.ts';
 
@@ -100,7 +107,7 @@ export class BotService {
         }
 
         // Query similar content from vector database with contextual query
-        const similarContent = await vectorDb.querySimilar(botId, queryContent, 10, 0.25);
+        const similarContent = await vectorDb.querySimilar(botId, queryContent, 4, 0.3);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
@@ -423,5 +430,151 @@ export async function populateKBFromCrawlerResults(
         console.log(`🔄 Updated bot prompt template`);
     }
 
+    console.log('✅ Finished processing all pages');
     return { count: result.count || 0 };
+}
+
+async function extractTextFromDocx(filePath: string): Promise<string> {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+}
+
+async function extractTextFromPdf(filePath: string): Promise<string> {
+    const dataBuffer = readFileSync(filePath);
+    const data = await pdfParse(dataBuffer);
+    return data.text;
+}
+
+async function processFile(
+    filePath: string,
+    botId: string,
+    vectorDb: VectorDBService,
+): Promise<void> {
+    try {
+        const ext = extname(filePath).toLowerCase();
+        let text: string;
+
+        const bot = await botService.getBotById(botId);
+        if (!bot) {
+            throw new Error(`Bot not found: ${botId}`);
+        }
+
+        // Extract text based on file type
+        if (ext === '.docx') {
+            text = await extractTextFromDocx(filePath);
+        } else if (ext === '.pdf') {
+            text = await extractTextFromPdf(filePath);
+        } else {
+            console.warn(`Skipping unsupported file type: ${filePath}`);
+            return;
+        }
+
+        // Split text into chunks
+        const splitter = new RecursiveCharacterTextSplitter({
+            chunkSize: 1200,
+            chunkOverlap: 200,
+        });
+        const chunks = await splitter.createDocuments([text]);
+
+        // Store chunks in vector database
+        await vectorDb.batchStoreEmbeddings(
+            botId,
+            chunks.map((chunk: { pageContent: string; metadata?: { loc?: string } }) => ({
+                content: chunk.pageContent,
+                metadata: {
+                    source: basename(filePath),
+                    loc: chunk.metadata?.loc || 'unknown',
+                },
+                tag: basename(filePath),
+            })),
+        );
+
+        console.log(`Successfully processed ${filePath}`);
+    } catch (error) {
+        console.error(`Error processing ${filePath}:`, error);
+    }
+}
+
+export async function populateKBFromFiles(botId: string): Promise<void> {
+    const bot = await botService.getBotById(botId);
+    if (!bot) {
+        throw new Error(`Bot not found: ${botId}`);
+    }
+    const vectorDb = new VectorDBService();
+    const kbDir = join(process.cwd(), 'src', 'kb_files', botId);
+    if (!kbDir) {
+        throw new Error(`KB directory not found: ${kbDir}`);
+    }
+
+    // Get all files in the kb_files directory
+    const files = readdirSync(kbDir);
+
+    // Filter for PDF and DOCX files
+    const validFiles = files.filter((file) => {
+        const ext = extname(file).toLowerCase();
+        return ext === '.pdf' || ext === '.docx';
+    });
+
+    if (validFiles.length === 0) {
+        console.log('No PDF or DOCX files found in kb_files directory');
+        return;
+    }
+
+    // Process each file
+    for (const file of validFiles) {
+        const filePath = join(kbDir, file);
+        await processFile(filePath, botId, vectorDb);
+    }
+    console.log('✅ Finished processing all files');
+
+    return;
+}
+
+export async function loadAndProcessWebPages(botId: string, urls: string[]): Promise<void> {
+    const bot = await botService.getBotById(botId);
+    if (!bot) {
+        throw new Error(`Bot not found: ${botId}`);
+    }
+    const vectorDB = new VectorDBService();
+    const textSplitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+    });
+
+    let i = 0;
+    const len = urls.length;
+    for (const url of urls) {
+        try {
+            i++;
+            console.log(`${i}/${len} - ${url}`.yellow);
+
+            // Load webpage
+            const loader = new CheerioWebBaseLoader(url, {
+                selector: 'body', // Scrape the entire body content
+            });
+            const docs = await loader.load();
+
+            // Split into chunks
+            const chunks = await textSplitter.splitDocuments(docs);
+
+            // Prepare chunks for storage
+            const items = chunks.map((chunk: Document) => ({
+                content: chunk.pageContent,
+                metadata: {
+                    ...chunk.metadata,
+                    source: url,
+                },
+            }));
+
+            // Store embeddings in batches
+            const result = await vectorDB.batchStoreEmbeddings(botId, items);
+            console.log(`Stored ${result.count} embeddings for ${url}`);
+        } catch (error) {
+            console.error(`Error processing ${url}:`.red, error);
+            process.exit(1);
+        }
+    }
+
+    console.log('✅ Finished processing all links');
+    return;
 }

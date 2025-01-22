@@ -207,6 +207,17 @@ export class VectorDBService {
         return results;
     }
 
+    async deleteByBotId(botId: string): Promise<{ count: number }> {
+        const result = await this.prisma.$executeRaw(
+            Prisma.sql`
+                DELETE FROM embeddings
+                WHERE bot_id = ${botId}
+                RETURNING id;
+            `,
+        );
+        return { count: typeof result === 'number' ? result : 0 };
+    }
+
     async deleteByBotIdAndMetadataSource(
         botId: string,
         source: string,

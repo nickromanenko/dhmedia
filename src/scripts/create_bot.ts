@@ -4,12 +4,7 @@ async function createBot(): Promise<void> {
     const prisma = new PrismaClient();
 
     try {
-        const bot = await prisma.bot.create({
-            data: {
-                name: 'DHHMedia Assistant',
-                description: 'Assistant for DHHMedia',
-                model: 'gpt-4o',
-                prompt: `## Identity
+        const promptTemplate = `## Identity
 You are a support agent for a Doghouse Media.
 Company Profile
 ●	Doghouse 2.0
@@ -31,7 +26,14 @@ Deliver clear, empathetic responses.
 
 
 Technical Issues: If unable to assist due to technical difficulties, apologize and provide alternative contact methods.
-"I'm sorry, I'm experiencing some technical issues. Please email us at hello@doghouse.agency"`,
+"I'm sorry, I'm experiencing some technical issues. Please email us at hello@doghouse.agency"`;
+        const bot = await prisma.bot.create({
+            data: {
+                name: 'DHHMedia Assistant',
+                description: 'Assistant for DHHMedia',
+                model: 'gpt-4o-mini',
+                prompt: promptTemplate,
+                prompt_template: promptTemplate,
                 settings: {
                     max_tokens: 5000,
                     temperature: 0.7,

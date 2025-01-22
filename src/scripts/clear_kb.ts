@@ -1,6 +1,5 @@
 import 'dotenv/config';
-import { populateKBFromCrawlerResults, populateKBFromFiles } from '../services/bot.service.ts';
-import { VectorDBService } from '../services/vector_db.service.js';
+import { VectorDBService } from '../services/vector_db.service.ts';
 
 async function main(): Promise<void> {
     try {
@@ -11,17 +10,6 @@ async function main(): Promise<void> {
         // const { count: itemsCount } = await vectorDB.deleteByBotIdAndMetadataSource(botId, url);
         const { count: itemsCount } = await vectorDB.deleteByBotId(botId);
         console.log('Deleted items:', itemsCount);
-        // 2. Repopulate the vector database with new embeddings
-
-        // FROM Files
-        await populateKBFromFiles(botId);
-
-        // FROM crawler
-        const url =
-            'https://crawler.doghouse.agency/site/130/output/all?limit=500&page=1&filter%5Bresponse%5D=success&content%5Bis_job_type%5D=1';
-        await populateKBFromCrawlerResults(botId, url);
-
-        console.log('Done ✅');
     } catch (error) {
         console.error('Error:', error);
         process.exit(1);
