@@ -27,7 +27,7 @@ export async function createQueryFromMessages(
 ): Promise<string> {
     const openai = new OpenAI();
     const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
             {
                 role: 'system',
@@ -40,7 +40,7 @@ Instructions:
 4. Focus on factual and specific terms rather than conversational elements
 5. Exclude generic pleasantries, greetings, or meta-conversation
 6. If the conversation has multiple topics, prioritize the most recent relevant topic
-7. The query should be 1 sentence maximum, focused on the key search terms - ideally several words
+7. The query should be 4-5 maximum, focused on the key search terms - it should catch the essence of the user's information need
 
 Do not explain your process or add any commentary. Return only the search query.`,
             },

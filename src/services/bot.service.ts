@@ -426,6 +426,7 @@ export async function populateKBFromCrawlerResults(
                 metadata: {
                     source: result.url,
                 },
+                tag: 'crawler',
             });
         }
 
@@ -437,7 +438,7 @@ export async function populateKBFromCrawlerResults(
         }
     }
 
-    const result = await vectorDB.batchStoreEmbeddings(botId, items, 'crawler');
+    const result = await vectorDB.batchStoreEmbeddings(botId, items);
     console.log(`💽 Stored ${result.count} embeddings (processed ${totalProcessed} items)`);
 
     // Update bot prompt template

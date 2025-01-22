@@ -109,8 +109,7 @@ export class VectorDBService {
      */
     async batchStoreEmbeddings(
         botId: string,
-        items: Array<{ content: string; metadata?: Record<string, any> }>,
-        tag: string = '',
+        items: Array<{ content: string; metadata?: Record<string, any>; tag?: string }>,
     ): Promise<{ count: number }> {
         console.log('batchStoreEmbeddings', botId, items.length);
         const embeddings = await Promise.all(
@@ -124,7 +123,7 @@ export class VectorDBService {
                         source: item.metadata?.source || 'unknown',
                         loc: item.metadata?.loc || 'unknown',
                     },
-                    tag,
+                    tag: item.tag,
                 };
             }),
         );
@@ -137,6 +136,7 @@ export class VectorDBService {
                     ${e.content},
                     ${Prisma.raw(vectorStr)},
                     ${e.metadata}::jsonb,
+                    ${e.tag || ''},
                     ${botId},
                     CURRENT_TIMESTAMP
                 )`;
@@ -145,7 +145,7 @@ export class VectorDBService {
 
         await this.prisma.$executeRaw(
             Prisma.sql`
-                INSERT INTO embeddings (id, content, embedding, metadata, bot_id, created_at)
+                INSERT INTO embeddings (id, content, embedding, metadata, tag, bot_id, created_at)
                 VALUES ${valuesSql};
             `,
         );
