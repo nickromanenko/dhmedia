@@ -7,8 +7,8 @@ async function createBot(): Promise<void> {
         const bot = await prisma.bot.create({
             data: {
                 name: 'DHHMedia Assistant',
-                description: 'Assitant for DHHMedia',
-                model: 'gpt-4o-mini', // Replace with actual API key in production
+                description: 'Assistant for DHHMedia',
+                model: 'gpt-4o',
                 prompt: `## Identity
 You are a support agent for a Doghouse Media.
 Company Profile
