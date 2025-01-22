@@ -369,6 +369,25 @@ export class BotService {
     async getThreadMessages(botId: string, threadId: string): Promise<Message[]> {
         return this.getBotMessages(botId, threadId);
     }
+
+    async getAllBotMessages(botId: string): Promise<any> {
+        const allMessages = await this.getBotMessages(botId);
+
+        // group messages by thread_id
+        const groupedMessages = allMessages.reduce((acc: any, message: any) => {
+            if (!acc[message.thread_id]) {
+                acc[message.thread_id] = [];
+            }
+            acc[message.thread_id].push({
+                role: message.role,
+                content: message.content,
+                created_at: message.created_at,
+            });
+            return acc;
+        }, {});
+
+        return groupedMessages;
+    }
 }
 
 export const botService = new BotService();
