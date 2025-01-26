@@ -32,7 +32,7 @@ export class VectorDBService {
         const openai: OpenAI = new OpenAI();
         const response = await openai.embeddings.create({
             input: text,
-            model: 'text-embedding-3-small',
+            model: 'text-embedding-3-large',
         });
 
         return response.data[0].embedding;
@@ -56,7 +56,7 @@ export class VectorDBService {
                 VALUES (
                     ${id},
                     ${content},
-                    ${Prisma.raw(`array[${embedding.join(',')}]::vector(1536)`)},
+                    ${Prisma.raw(`array[${embedding.join(',')}]::vector(3072)`)},
                     ${metadata || {}}::jsonb,
                     ${botId},
                     CURRENT_TIMESTAMP
@@ -84,7 +84,7 @@ export class VectorDBService {
         console.log('👀 querySimilar', botId, text, limit, similarityThreshold);
 
         const queryEmbedding = await this.createEmbedding(text);
-        const vectorQuery = `array[${queryEmbedding.join(',')}]::vector(1536)`;
+        const vectorQuery = `array[${queryEmbedding.join(',')}]::vector(3072)`;
 
         const results = await this.prisma.$queryRaw<SimilarityResult[]>(
             Prisma.sql`
@@ -130,7 +130,7 @@ export class VectorDBService {
 
         const valuesSql = embeddings
             .map((e) => {
-                const vectorStr = `array[${e.embedding.join(',')}]::vector(1536)`;
+                const vectorStr = `array[${e.embedding.join(',')}]::vector(3072)`;
                 return Prisma.sql`(
                     ${e.id},
                     ${e.content},

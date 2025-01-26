@@ -40,7 +40,7 @@ Instructions:
 4. Focus on factual and specific terms rather than conversational elements
 5. Exclude generic pleasantries, greetings, or meta-conversation
 6. If the conversation has multiple topics, prioritize the most recent relevant topic
-7. The query should be 4-5 maximum, focused on the key search terms - it should catch the essence of the user's information need
+7. The query should be ideally 2-3 words maximum, focused on the key search terms - it should catch the essence of the user's information need. Keep it as short as possible. Example: 'React jobs' instead of 'React job openings'
 
 Do not explain your process or add any commentary. Return only the search query.`,
             },

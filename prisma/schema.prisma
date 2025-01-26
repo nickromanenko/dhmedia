@@ -47,11 +47,11 @@ model Message {
   @@map("messages")
 }
 
-/// Represents a text embedding using OpenAI's text-embedding-3-small model
+/// Represents a text embedding using OpenAI's text-embedding-3-large model
 model Embedding {
   id         String                     @id @default(uuid())
   content    String                     // The original text content
-  embedding  Unsupported("vector(1536)") // OpenAI text-embedding-3-small dimensions
+  embedding  Unsupported("vector(3072)") // OpenAI text-embedding-3-large dimensions
   metadata   Json?                     // Optional metadata about the embedding
   tag        String?                   // Tag to categorize or label the embedding
   bot_id     String                    // Reference to the bot this embedding belongs to

@@ -107,7 +107,7 @@ export class BotService {
         }
 
         // Query similar content from vector database with contextual query
-        const similarContent = await vectorDb.querySimilar(botId, queryContent, 4, 0.3);
+        const similarContent = await vectorDb.querySimilar(botId, queryContent, 8, 0.2);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
