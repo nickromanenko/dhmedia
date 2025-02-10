@@ -443,9 +443,13 @@ export async function populateKBFromCrawlerResults(
 
     // Update bot prompt template
     if (bot.prompt_template) {
-        const updatedPrompt = bot.prompt_template
-            .replace('{{titles}}', titles.join(', '))
-            .replace('{{count}}', result.count.toString());
+        let updatedPrompt = bot.prompt_template;
+        if (bot.prompt_template.includes('{{titles}}')) {
+            updatedPrompt = updatedPrompt.replace('{{titles}}', titles.join(', '));
+        }
+        if (bot.prompt_template.includes('{{count}}')) {
+            updatedPrompt = updatedPrompt.replace('{{count}}', result.count.toString());
+        }
         await botService.updateBotById(botId, { prompt: updatedPrompt });
         console.log(`🔄 Updated bot prompt template`);
     }
