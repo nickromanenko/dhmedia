@@ -107,7 +107,7 @@ export class BotService {
         }
 
         // Query similar content from vector database with contextual query
-        const similarContent = await vectorDb.querySimilar(botId, queryContent, 8, 0.2);
+        const similarContent = await vectorDb.querySimilar(botId, queryContent, 8, 0.1);
 
         // Create messages array with system prompt, tools info, and context
         let systemPrompt = bot.prompt;
@@ -597,4 +597,42 @@ export async function loadAndProcessWebPages(botId: string, urls: string[]): Pro
 
     console.log('✅ Finished processing all links');
     return;
+}
+
+export async function addCrawlerLink(botId: string, url: string): Promise<void> {
+    try {
+        const bot = await botService.getBotById(botId);
+        if (!bot) {
+            throw new Error(`Bot not found: ${botId}`);
+        }
+
+        await prisma.crawlerLink.create({
+            data: {
+                bot_id: botId,
+                url,
+            },
+        });
+
+        return;
+    } catch (error) {
+        console.error('Error adding crawler link:', error);
+    }
+}
+
+export async function getCrawlerLinks(botId: string): Promise<string[]> {
+    const links = await prisma.crawlerLink.findMany({
+        where: {
+            bot_id: botId,
+        },
+    });
+    return links.map((link) => link.url);
+}
+
+export async function getAutoUpdateBots(): Promise<Bot[]> {
+    const bots = await prisma.bot.findMany({
+        where: {
+            auto_update_kb: true,
+        },
+    });
+    return bots;
 }

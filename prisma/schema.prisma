@@ -17,7 +17,7 @@ datasource db {
 }
 
 model Bot {
-  id              String      @id @default(uuid())
+  id              String        @id @default(uuid())
   name            String
   description     String?
   model           String
@@ -26,10 +26,12 @@ model Bot {
   settings        Json?
   widget_settings Json?
   tools           Json?       // Array of tool objects: { name: string, description?: string, input_schema: Json, output_schema: Json }
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
+  auto_update_kb  Boolean      @default(false)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
   messages        Message[]
   embeddings      Embedding[]
+  crawler_links   CrawlerLink[]
 
   @@map("bots")
 }
@@ -60,4 +62,15 @@ model Embedding {
 
   @@index([bot_id])
   @@map("embeddings")
+}
+
+model CrawlerLink {
+  id         String   @id @default(uuid())
+  url        String
+  bot_id     String
+  bot        Bot      @relation(fields: [bot_id], references: [id])
+  created_at DateTime @default(now())
+
+  @@index([bot_id])
+  @@map("crawler_links")
 }
